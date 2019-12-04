@@ -1,9 +1,30 @@
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+
+use rand;
 use xcb;
 
 fn move_window(conn: &xcb::Connection, window: xcb::Window, d_x: i32, d_y: i32) {
     // TODO
-    let values = [(xcb::CONFIG_WINDOW_X as u16, 10), (xcb::CONFIG_WINDOW_Y as u16, 10)];
+    let values = [
+        (xcb::CONFIG_WINDOW_X as u16, 10),
+        (xcb::CONFIG_WINDOW_Y as u16, 10),
+    ];
     xcb::configure_window(conn, window, &values);
+}
+
+fn assign_direction() -> i32 {
+    let x: f32 = rand::random();
+    (x * 360f32) as i32
+}
+
+fn assign_speed() -> f32 {
+    let x: f32 = rand::random();
+    x * 2f32
+}
+
+fn assign_size() -> (u32, u32) {
+    (rand::random(), rand::random())
 }
 
 fn main() {
@@ -20,6 +41,8 @@ fn main() {
     let screen = setup.roots().nth(screen_num as usize).unwrap();
     let root = screen.root();
 
+    let mut windows = HashMap::new();
+
     loop {
         let tree = xcb::query_tree(&conn, root).get_reply().unwrap();
         let children = tree.children();
@@ -29,39 +52,17 @@ fn main() {
             continue;
         }
 
-        move_window(&conn, children[0], 0, 0);
-    }
-
-    return;
-
-    let reply = xcb::grab_pointer(
-        &conn,
-        true,
-        root,
-        (xcb::EVENT_MASK_BUTTON_RELEASE
-            | xcb::EVENT_MASK_BUTTON_PRESS
-            | xcb::EVENT_MASK_BUTTON_MOTION
-            | xcb::EVENT_MASK_POINTER_MOTION) as u16,
-        xcb::GRAB_MODE_ASYNC as u8,
-        xcb::GRAB_MODE_ASYNC as u8,
-        xcb::NONE,
-        cursor,
-        xcb::CURRENT_TIME,
-    )
-    .get_reply()
-    .unwrap();
-
-    if reply.status() as u32 == xcb::GRAB_STATUS_SUCCESS {
-        dbg!("got that good grab");
-    }
-
-    loop {
-        let ev = conn.wait_for_event().unwrap();
-        match ev.response_type() {
-            xcb::MOTION_NOTIFY => {dbg!("hmmm");},
-            xcb::BUTTON_PRESS => {dbg!("press");},
-            xcb::BUTTON_RELEASE => {dbg!("release");},
-            _ => unreachable!(),
+        for child in children {
+            match windows.entry(child.clone()) {
+                Entry::Occupied(o) => {
+                    dbg!(o.get());
+                }
+                Entry::Vacant(o) => {
+                    o.insert((assign_direction(), assign_speed()));
+                }
+            }
         }
+
+        move_window(&conn, children[0], 0, 0);
     }
 }
