@@ -108,7 +108,9 @@ fn main() {
         }
         let now = Instant::now();
         let elapsed = now - loop_start;
-        let time_to_sleep = Duration::from_millis(50).checked_sub(elapsed).unwrap_or(Duration::new(0, 0));
+        let time_to_sleep = Duration::from_millis(50)
+            .checked_sub(elapsed)
+            .unwrap_or(Duration::new(0, 0));
         thread::sleep(time_to_sleep);
     }
 }
