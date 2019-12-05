@@ -28,7 +28,7 @@ fn assign_direction() -> f32 {
 
 fn assign_speed() -> f32 {
     let x: f32 = rand::random();
-    (x + 1f32) * 2.3
+    (x + 1f32) * 3.3
 }
 
 fn assign_size() -> (u32, u32) {
