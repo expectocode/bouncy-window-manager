@@ -7,7 +7,6 @@ use rand::{self, thread_rng, Rng};
 use xcb;
 
 fn move_window(conn: &xcb::Connection, window: xcb::Window, x: i16, y: i16) {
-    // TODO
     let values = [
         (xcb::CONFIG_WINDOW_X as u16, x as u32),
         (xcb::CONFIG_WINDOW_Y as u16, y as u32),
@@ -16,7 +15,6 @@ fn move_window(conn: &xcb::Connection, window: xcb::Window, x: i16, y: i16) {
 }
 
 fn resize_window(conn: &xcb::Connection, window: xcb::Window, width: u32, height: u32) {
-    // TODO
     let values = [
         (xcb::CONFIG_WINDOW_WIDTH as u16, width),
         (xcb::CONFIG_WINDOW_HEIGHT as u16, height),
