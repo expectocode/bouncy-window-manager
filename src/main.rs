@@ -33,7 +33,7 @@ fn assign_speed() -> f32 {
 
 fn assign_size() -> (u32, u32) {
     let mut rng = thread_rng();
-    (rng.gen_range(20, 100), rng.gen_range(20, 100))
+    (rng.gen_range(300, 410), rng.gen_range(200, 250))
 }
 
 // Returns new direction
