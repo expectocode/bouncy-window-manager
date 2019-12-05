@@ -1,14 +1,16 @@
-use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use rand::{self, thread_rng, Rng};
 use xcb;
 
-fn move_window(conn: &xcb::Connection, window: xcb::Window, d_x: i32, d_y: i32) {
+fn move_window(conn: &xcb::Connection, window: xcb::Window, x: i16, y: i16) {
     // TODO
     let values = [
-        (xcb::CONFIG_WINDOW_X as u16, 10),
-        (xcb::CONFIG_WINDOW_Y as u16, 10),
+        (xcb::CONFIG_WINDOW_X as u16, x as u32),
+        (xcb::CONFIG_WINDOW_Y as u16, y as u32),
     ];
     xcb::configure_window(conn, window, &values);
 }
@@ -22,14 +24,13 @@ fn resize_window(conn: &xcb::Connection, window: xcb::Window, width: u32, height
     xcb::configure_window(conn, window, &values);
 }
 
-fn assign_direction() -> i32 {
-    let x: f32 = rand::random();
-    (x * 360f32) as i32
+fn assign_direction() -> f32 {
+    rand::random::<f32>() * (std::f32::consts::PI * 2f32)
 }
 
 fn assign_speed() -> f32 {
     let x: f32 = rand::random();
-    x * 2f32
+    (x + 0.2) * 5f32
 }
 
 fn assign_size() -> (u32, u32) {
@@ -37,9 +38,41 @@ fn assign_size() -> (u32, u32) {
     (rng.gen_range(20, 100), rng.gen_range(20, 100))
 }
 
+// Returns new direction
+fn bounce_move(
+    conn: &xcb::Connection,
+    root_bottom: i16,
+    root_right: i16,
+    win: xcb::Window,
+    dir: f32,
+    speed: f32,
+) -> f32 {
+    // Move first, fix later ;)
+    let orig_geom = xcb::get_geometry(conn, win).get_reply().unwrap();
+    let d_x = (dir.cos() * speed) as i16;
+    let d_y = (dir.sin() * speed) as i16;
+    move_window(conn, win, orig_geom.x() + d_x, orig_geom.y() + d_y);
+
+    let geom = xcb::get_geometry(conn, win).get_reply().unwrap();
+
+    let bottom = geom.y() + geom.height() as i16;
+    let top = geom.y();
+    let right = geom.x() + geom.width() as i16;
+    let left = geom.x();
+
+    let mut dir = dir;
+
+    if bottom > root_bottom || top < 0 {
+        dir = (std::f32::consts::PI * 2f32) - dir;
+    }
+    if right > root_right || left < 0 {
+        dir = (std::f32::consts::PI) - dir;
+    }
+    dir
+}
+
 fn main() {
     let (conn, screen_num) = xcb::Connection::connect(None).unwrap();
-    dbg!(screen_num);
 
     let setup = conn.get_setup();
     let screen = setup.roots().nth(screen_num as usize).unwrap();
@@ -47,19 +80,21 @@ fn main() {
 
     let mut windows = HashMap::new();
 
+    let root_geom = xcb::get_geometry(&conn, root).get_reply().unwrap();
+    let root_bottom = root_geom.height() as i16;
+    let root_right = root_geom.width() as i16;
+
     loop {
+        let loop_start = Instant::now();
         let tree = xcb::query_tree(&conn, root).get_reply().unwrap();
         let children = tree.children();
-        dbg!(children);
-
-        if children.len() == 0 {
-            continue;
-        }
 
         for &child in children {
             match windows.entry(child) {
-                Entry::Occupied(o) => {
-                    dbg!(o.get());
+                Entry::Occupied(mut o) => {
+                    let (direction, speed) = o.get();
+                    o.get_mut().0 =
+                        bounce_move(&conn, root_bottom, root_right, child, *direction, *speed);
                 }
                 Entry::Vacant(o) => {
                     let (w, h) = assign_size();
@@ -68,7 +103,9 @@ fn main() {
                 }
             }
         }
-
-        move_window(&conn, children[0], 0, 0);
+        let now = Instant::now();
+        let elapsed = now - loop_start;
+        let time_to_sleep = Duration::from_millis(50).checked_sub(elapsed).unwrap_or(Duration::new(0, 0));
+        thread::sleep(time_to_sleep);
     }
 }
