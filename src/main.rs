@@ -25,12 +25,12 @@ fn resize_window(conn: &xcb::Connection, window: xcb::Window, width: u32, height
 }
 
 fn assign_direction() -> f32 {
-    rand::random::<f32>() * (std::f32::consts::PI * 2f32)
+    (rand::random::<f32>() * ((std::f32::consts::PI / 2.0) - 0.8)) + 0.4
 }
 
 fn assign_speed() -> f32 {
     let x: f32 = rand::random();
-    (x + 0.2) * 5f32
+    (x + 1f32) * 2.3
 }
 
 fn assign_size() -> (u32, u32) {
@@ -54,6 +54,11 @@ fn bounce_move(
     move_window(conn, win, orig_geom.x() + d_x, orig_geom.y() + d_y);
 
     let geom = xcb::get_geometry(conn, win).get_reply().unwrap();
+
+    if geom.x() == orig_geom.x() && geom.y() == orig_geom.y() {
+        // nudge
+        move_window(conn, win, geom.x() + 1, geom.y() + 1);
+    }
 
     let bottom = geom.y() + geom.height() as i16;
     let top = geom.y();
